@@ -13,7 +13,9 @@ abstract class AbstractRepository implements RepositoryInterface
     /**
      * Trait
      */
-    use BaseRepository;
+    use BaseRepository {
+        baseOrderBy as orderBy;
+    }
 
     /**
      * @var bool
@@ -53,12 +55,16 @@ abstract class AbstractRepository implements RepositoryInterface
      * @param false $take
      * @param false $pagination
      * @param false $where
-     * @param string $orderBy
+     * @param string $orderByColumn
+     * @param string $orderByDirection
      * @return mixed
      */
-    public function get($columns = ['*'], $take = false, $pagination = false, $where = false, $orderBy = 'created_at')
+    public function get(
+        $columns = ['*'], $take = false, $pagination = false,
+        $where = false, $orderByColumn = 'created_at', $orderByDirection = 'desc'
+    )
     {
-        $builder = $this->model->latest($orderBy);
+        $builder = $this->orderBy($orderByColumn, $orderByDirection);
 
         if ($take) {
             $builder->take($take);
@@ -77,68 +83,96 @@ abstract class AbstractRepository implements RepositoryInterface
 
     /**
      * @param string[] $columns
-     * @param string $orderBy
+     * @param string $orderByColumn
+     * @param string $orderByDirection
      * @return mixed
      */
-    public function all($columns = ['*'], $orderBy = 'created_at')
+    public function all($columns = ['*'], $orderByColumn = 'created_at', $orderByDirection = 'desc')
     {
-        return $this->model->latest($orderBy)->get($columns);
+        return $this
+            ->orderBy($orderByColumn, $orderByDirection)
+            ->get($columns);
     }
 
     /**
      * @param $take
      * @param string[] $columns
-     * @param string $orderBy
+     * @param string $orderByColumn
+     * @param string $orderByDirection
      * @return mixed
      */
-    public function take($take, $columns = ['*'], $orderBy = 'created_at')
+    public function take($take, $columns = ['*'], $orderByColumn = 'created_at', $orderByDirection = 'desc')
     {
-        return $this->model->latest($orderBy)->take($take)->get($columns);
+        return $this
+            ->orderBy($orderByColumn, $orderByDirection)
+            ->take($take)
+            ->get($columns);
     }
 
     /**
      * @param false $perPage
      * @param string[] $columns
-     * @param string $orderBy
+     * @param string $orderByColumn
+     * @param string $orderByDirection
      * @return mixed
      */
-    public function paginate($perPage = false, $columns = ['*'], $orderBy = 'created_at')
+    public function paginate(
+        $perPage = false, $columns = ['*'],
+        $orderByColumn = 'created_at', $orderByDirection = 'desc')
     {
-        return $this->model->latest($orderBy)->paginate($perPage, $columns);
+        return $this
+            ->orderBy($orderByColumn, $orderByDirection)
+            ->paginate($perPage, $columns);
     }
 
     /**
      * @param $relations
      * @param string[] $columns
      * @param int $paginate
-     * @param string $orderBy
+     * @param string $orderByColumn
+     * @param string $orderByDirection
      * @return mixed
      */
-    public function withPaginate($relations, $columns = ['*'], $paginate = 15, $orderBy = 'created_at')
+    public function withPaginate(
+        $relations, $columns = ['*'], $paginate = 15,
+        $orderByColumn = 'created_at', $orderByDirection = 'desc'
+    )
     {
-        return $this->model->latest($orderBy)->with($relations)->paginate($paginate);
+        return $this
+            ->orderBy($orderByColumn, $orderByDirection)
+            ->with($relations)
+            ->paginate($paginate);
     }
 
     /**
      * @param false $perPage
-     * @param string[] $columns
-     * @param string $orderBy
+     * @param string $orderByColumn
+     * @param string $orderByDirection
      * @return mixed
      */
-    public function simplePaginate($perPage = false, $columns = ['*'], $orderBy = 'created_at')
+    public function simplePaginate(
+        $perPage = false, $columns = ['*'],
+        $orderByColumn = 'created_at', $orderByDirection = 'desc'
+    )
     {
-        return $this->model->latest($orderBy)->simplePaginate($perPage, $columns);
+        return $this
+            ->orderBy($orderByColumn, $orderByDirection)
+            ->simplePaginate($perPage, $columns);
     }
 
     /**
      * @param $take
      * @param string[] $columns
-     * @param string $orderBy
+     * @param string $orderByColumn
+     * @param string $orderByDirection
      * @return mixed
      */
-    public function limit($take, $columns = ['*'], $orderBy = 'created_at')
+    public function limit($take, $columns = ['*'], $orderByColumn = 'created_at', $orderByDirection = 'desc')
     {
-        return $this->model->latest($orderBy)->limit($take)->get($columns);
+        return $this
+            ->orderBy($orderByColumn, $orderByDirection)
+            ->limit($take)
+            ->get($columns);
     }
 
     /**
@@ -154,11 +188,15 @@ abstract class AbstractRepository implements RepositoryInterface
     /**
      * @param $ids
      * @param string[] $columns
+     * @param string $orderByColumn
+     * @param string $orderByDirection
      * @return mixed
      */
-    public function findMany($ids, $columns = ['*'])
+    public function findMany($ids, $columns = ['*'], $orderByColumn = 'created_at', $orderByDirection = 'desc')
     {
-        return $this->model->findMany($ids, $columns);
+        return $this
+            ->orderBy($orderByColumn, $orderByDirection)
+            ->findMany($ids, $columns);
     }
 
     /**
@@ -214,16 +252,23 @@ abstract class AbstractRepository implements RepositoryInterface
     }
 
     /**
-     * @param  \Closure|string|array|\Illuminate\Database\Query\Expression  $column
+     * @param \Closure|string|array|\Illuminate\Database\Query\Expression $column
      * @param null $operator
      * @param null $value
      * @param string[] $columns
-     * @param string $orderBy
+     * @param string $orderByColumn
+     * @param string $orderByDirection
      * @return mixed
      */
-    public function whereAll($column, $operator = null, $value = null, $columns = ['*'], $orderBy = 'created_at')
+    public function whereAll(
+        $column, $operator = null, $value = null,
+        $columns = ['*'], $orderByColumn = 'created_at', $orderByDirection = 'desc'
+    )
     {
-        return $this->model->latest($orderBy)->where($column, $operator, $value)->get($columns);
+        return $this
+            ->orderBy($orderByColumn, $orderByDirection)
+            ->where($column, $operator, $value)
+            ->get($columns);
     }
 
     /**
@@ -232,46 +277,69 @@ abstract class AbstractRepository implements RepositoryInterface
      * @param null $value
      * @param $relations
      * @param string[] $columns
-     * @param string $orderBy
+     * @param string $orderByColumn
+     * @param string $orderByDirection
      * @return mixed
      */
-    public function whereWithAll($column, $operator = null, $value = null, $relations, $columns = ['*'], $orderBy = 'created_at')
+    public function whereWithAll(
+        $column, $operator = null, $value = null, $relations,
+        $columns = ['*'], $orderByColumn = 'created_at', $orderByDirection = 'desc'
+    )
     {
-        return $this->model->latest($orderBy)->where($column, $operator, $value)->with($relations)->get($columns);
+        return $this
+            ->orderBy($orderByColumn, $orderByDirection)
+            ->where($column, $operator, $value)
+            ->with($relations)
+            ->get($columns);
     }
 
     /**
-     * @param  string|\Illuminate\Database\Query\Expression  $column
+     * @param string|\Illuminate\Database\Query\Expression $column
      * @param array $value
      * @param string[] $columns
-     * @param string $orderBy
+     * @param string $orderByColumn
+     * @param string $orderByDirection
      * @return mixed
      */
-    public function whereBetween($column, $value = [], $columns = ['*'], $orderBy = 'created_at')
+    public function whereBetween(
+        $column, $value = [], $columns = ['*'],
+        $orderByColumn = 'created_at', $orderByDirection = 'desc'
+    )
     {
-        return $this->model->latest($orderBy)->whereBetween($column, $value)->get($columns);
+        return $this
+            ->orderBy($orderByColumn, $orderByDirection)
+            ->whereBetween($column, $value)
+            ->get($columns);
     }
 
     /**
      * @param $relations
      * @param string[] $columns
-     * @param string $orderBy
+     * @param string $orderByColumn
+     * @param string $orderByDirection
      * @return mixed
      */
-    public function with($relations, $columns = ['*'], $orderBy = 'created_at')
+    public function with($relations, $columns = ['*'], $orderByColumn = 'created_at', $orderByDirection = 'desc')
     {
-        return $this->model->latest($orderBy)->with($relations)->get($columns);
+        return $this
+            ->orderBy($orderByColumn, $orderByDirection)
+            ->with($relations)
+            ->get($columns);
     }
 
     /**
      * @param $relations
      * @param string[] $columns
-     * @param string $orderBy
+     * @param string $orderByColumn
+     * @param string $orderByDirection
      * @return mixed
      */
-    public function withCount($relations, $columns = ['*'], $orderBy = 'created_at')
+    public function withCount($relations, $columns = ['*'], $orderByColumn = 'created_at', $orderByDirection = 'desc')
     {
-        return $this->model->latest($orderBy)->withCount($relations)->get($columns);
+        return $this
+            ->orderBy($orderByColumn, $orderByDirection)
+            ->withCount($relations)
+            ->get($columns);
     }
 
     /**
