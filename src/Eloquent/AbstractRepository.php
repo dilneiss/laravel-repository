@@ -249,7 +249,7 @@ abstract class AbstractRepository implements RepositoryInterface
      * @param string[] $columns
      * @return mixed
      */
-    public function whereWithAll($column, $value = null, $relations, $columns = ['*'])
+    public function whereWithAll($column, $relations, $value = null, $columns = ['*'])
     {
         return $this
             ->orderBy()
