@@ -7,10 +7,7 @@ use DummyModelNamespace;
 class DummyClass extends AbstractRepository
 {
     /**
-     * @return mixed|string
+     * @var string
      */
-    protected function model()
-    {
-        return DummyModelClass::class;
-    }
+    protected $model = DummyModelClass::class;
 }

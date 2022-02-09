@@ -5,7 +5,9 @@ namespace JetBox\Repositories;
 use JetBox\Repositories\Console\Commands\MakeAbstractRepositoryCommand;
 use JetBox\Repositories\Console\Commands\MakeRepositoryCommand;
 use Illuminate\Support\ServiceProvider;
-
+use JetBox\Repositories\Console\Commands\RepositoryInstallCommand;
+use JetBox\Repositories\Contracts\FileContract;
+use JetBox\Repositories\Services\FileService;
 
 class RepositoryServiceProvider extends ServiceProvider
 {
@@ -16,7 +18,7 @@ class RepositoryServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        //
+        $this->makeFileService();
     }
 
     /**
@@ -36,7 +38,18 @@ class RepositoryServiceProvider extends ServiceProvider
             $this->commands([
                 MakeAbstractRepositoryCommand::class,
                 MakeRepositoryCommand::class,
+                RepositoryInstallCommand::class
             ]);
         }
+    }
+
+    /**
+     * File Contract
+     */
+    private function makeFileService()
+    {
+        $this->app->singleton(FileContract::class, function ($app) {
+            return new FileService();
+        });
     }
 }

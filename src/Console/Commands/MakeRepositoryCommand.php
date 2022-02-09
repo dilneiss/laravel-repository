@@ -2,12 +2,12 @@
 
 namespace JetBox\Repositories\Console\Commands;
 
+use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use JetBox\Repositories\Eloquent\AbstractRepository;
 use Illuminate\Console\GeneratorCommand;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
 use Symfony\Component\Console\Input\InputArgument;
-
 
 class MakeRepositoryCommand extends GeneratorCommand
 {
@@ -26,17 +26,7 @@ class MakeRepositoryCommand extends GeneratorCommand
     /**
      * @var string
      */
-    protected $namespace = 'App\\Repositories';
-
-    /**
-     * @var string
-     */
     protected $type = 'Repository';
-
-    /**
-     * @var string
-     */
-    protected $abstractNamespace = AbstractRepository::class;
 
     /**
      * Create a new command instance.
@@ -52,72 +42,76 @@ class MakeRepositoryCommand extends GeneratorCommand
      * @param string $rootNamespace
      * @return string
      */
-    protected function getDefaultNamespace($rootNamespace)
+    protected function getDefaultNamespace($rootNamespace): string
     {
-        return $this->namespace;
+        return config('repository.repository_namespace');
     }
 
     /**
      * @return string
      */
-    protected function getStub()
+    protected function getStub(): string
     {
         return __DIR__ . '/../../../stubs/repository.stub';
     }
 
     /**
      * @param string $name
-     * @return mixed|string|string[]
-     * @throws \Illuminate\Contracts\Filesystem\FileNotFoundException
+     * @return string|string[]
+     * @throws FileNotFoundException
      */
     protected function buildClass($name)
     {
         $stub = parent::buildClass($name);
 
-        if (!file_exists(app_path('Repositories/AbstractRepository.php'))) {
-            $this->call('make:abstract-repository', [
-                'name' => 'AbstractRepository'
-            ]);
-        }
+        $this->makeAbstractRepository();
 
-//        $stub = str_replace('AbstractRepositoryNamespace', $this->abstractNamespace, $stub);
-
-        return $this->checkCommand($stub);
+        return $this->checkRepositoryName($stub);
     }
 
     /**
      * @param $stub
-     * @return mixed|string|string[]
+     * @return array|string|string[]|void
      */
-    protected function checkCommand($stub)
+    protected function checkRepositoryName($stub)
     {
-        // Command Line make:repository UserRepository
-        $nameInput = $this->getNameInput();
-        $checkCommandRepository = substr($nameInput, strpos($nameInput, 'Repository'));
+        $repository = substr($this->getNameInput(), -strlen($this->type));
 
-        if ($checkCommandRepository === 'Repository') {
-//            $modelNamespace = $this->qualifyModel($nameInput);
-            $modelNamespace = config('repository.app_model') . '\\' . $nameInput;
-            $modelNamespace = substr($modelNamespace, 0, strpos($modelNamespace, 'Repository'));
-            $nameInput = substr($nameInput, 0, strpos($nameInput, 'Repository'));
-            $nameInput = Str::singular($nameInput);
-            $modelNamespace = Str::singular($modelNamespace);
+        if ($repository) {
+            $modelName = substr($this->getNameInput(), 0, -strlen($this->type));
+            $modelName = Str::singular($modelName);
+            $modelNamespace = config('repository.model_namespace') . '\\' . $modelName;
 
             $stub = str_replace('DummyModelNamespace', $modelNamespace, $stub);
-            $stub = str_replace('DummyModelClass', $nameInput, $stub);
+            $stub = str_replace('DummyModelClass', $modelName, $stub);
 
             return $stub;
         }
 
-        $this->error('Error');
+        $this->error('Error Repository must finish the name of the Repository Example {Model}{Repository}');
+    }
 
-        return false;
+    /**
+     * @return void
+     */
+    protected function makeAbstractRepository(): void
+    {
+        $str = config('repository.repository_namespace');
+        $str = str_replace('A', 'a', $str);
+        $str = base_path("$str/AbstractRepository.php");
+        $str = str_replace('\\', '/', $str);
+
+        if (!file_exists($str)) {
+            $this->call('make:abstract-repository', [
+                'name' => 'AbstractRepository'
+            ]);
+        }
     }
 
     /**
      * @return array[]
      */
-    protected function getArguments()
+    protected function getArguments(): array
     {
         return [
             ['name', InputArgument::REQUIRED, 'The name of the repository class'],

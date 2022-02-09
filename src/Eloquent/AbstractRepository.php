@@ -3,61 +3,134 @@
 
 namespace JetBox\Repositories\Eloquent;
 
-
+use Closure;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Database\Query\Expression;
+use Illuminate\Support\Str;
 use JetBox\Repositories\Contracts\RepositoryInterface;
-use JetBox\Repositories\Traits\BaseRepositoryTrait as BaseRepository;
-
+use JetBox\Repositories\Exceptions\RepositoryException;
+use Exception;
 
 abstract class AbstractRepository implements RepositoryInterface
 {
     /**
-     * Trait
+     * @var string
      */
-    use BaseRepository {
-        baseOrderBy as private orderBy;
-    }
+    protected $model;
 
     /**
-     * @var bool
+     * @var callable
      */
-    public $model = false;
+    protected static $modelNameResolver;
 
     /**
-     * AbstractRepository constructor.
-     * @throws \Illuminate\Contracts\Container\BindingResolutionException
+     * Global OrderBy Column
+     * @var string
      */
-    public function __construct()
+    public $orderByColumn = 'created_at';
+
+    /**
+     * Global OrderBy Direction
+     * @var string
+     */
+    public $orderByDirection = 'desc';
+
+    /**
+     * @return string
+     */
+    protected static function getNamespace(): string
     {
-        $this->makeModel();
+        try {
+            return app(Application::class)->getNamespace();
+        } catch (Exception $exception) {
+            return 'App\\';
+        }
     }
 
     /**
      * @return mixed
      */
-    abstract protected function model();
+    public function newModel()
+    {
+        $model = $this->modelName();
+
+        return new $model;
+    }
 
     /**
-     * @return $this
-     * @throws \Illuminate\Contracts\Container\BindingResolutionException
-     * //$this->model = new $this->model; || return new $this->model
+     * @return bool|Closure|mixed
      */
-    private function makeModel()
+    public function modelName()
     {
-        $model = app()->make($this->model());
+        $resolver = static::$modelNameResolver ?: function (self $model) {
 
-        $this->model = $model;
+            $modelBaseName = Str::replaceLast('Repository', '', class_basename($model));
 
-        return $this;
+            $appNamespace = static::getNamespace();
+
+            return class_exists($appNamespace.'Models\\'.$modelBaseName)
+                   ? $appNamespace.'Models\\'.$modelBaseName
+                   : $appNamespace.$modelBaseName;
+        };
+
+        return $this->model ?: $resolver($this);
+    }
+
+    /**
+     * @param callable $resolver
+     */
+    public static function modelNameResolver(callable $resolver)
+    {
+        static::$modelNameResolver = $resolver;
+    }
+
+    /**
+     * @param string $orderByColumn
+     * @param string $orderByDirection
+     */
+    public function querySortable(string $orderByColumn, string $orderByDirection): void
+    {
+        $this->orderByColumn = $orderByColumn;
+        $this->orderByDirection = $orderByDirection;
+    }
+
+    /**
+     * @return mixed
+     * @throws RepositoryException
+     */
+    private function orderBy()
+    {
+        if ($this->orderByDirection === 'desc') {
+            return $this->newModel()->latest($this->orderByColumn);
+        }
+
+        if ($this->orderByDirection === 'asc') {
+            return $this->newModel()->oldest($this->orderByColumn);
+        }
+
+        throw RepositoryException::orderByDirection($this);
+    }
+
+    /**
+     * @param int|object $model
+     * @return mixed
+     */
+    private function findModel($model)
+    {
+        if (is_int($model))
+            return $this->find($model);
+
+        return $model;
     }
 
     /**
      * @param string[] $columns
      * @param false $take
      * @param false $pagination
-     * @param false $where
+     * @param array $where
      * @return mixed
      */
-    public function get($columns = ['*'], $take = false, $pagination = false, $where = false)
+    public function get($columns = ['*'], $take = false, $pagination = false, array $where = [])
     {
         $builder = $this->orderBy();
 
@@ -70,7 +143,7 @@ abstract class AbstractRepository implements RepositoryInterface
         }
 
         if ($where) {
-            $builder->where($where[0], $where[1]);
+            $builder->where($where);
         }
 
         return $builder->get($columns);
@@ -201,7 +274,7 @@ abstract class AbstractRepository implements RepositoryInterface
     }
 
     /**
-     * @param  \Closure|string|array|\Illuminate\Database\Query\Expression  $column
+     * @param Closure|string|array|Expression $column
      * @param null $value
      * @param string[] $columns
      * @return mixed
@@ -215,7 +288,7 @@ abstract class AbstractRepository implements RepositoryInterface
     }
 
     /**
-     * @param  \Closure|string|array|\Illuminate\Database\Query\Expression  $column
+     * @param Closure|string|array|Expression $column
      * @param null $value
      * @param string[] $columns
      * @return mixed
@@ -229,7 +302,7 @@ abstract class AbstractRepository implements RepositoryInterface
     }
 
     /**
-     * @param \Closure|string|array|\Illuminate\Database\Query\Expression $column
+     * @param Closure|string|array|Expression $column
      * @param null $value
      * @param string[] $columns
      * @return mixed
@@ -244,8 +317,8 @@ abstract class AbstractRepository implements RepositoryInterface
 
     /**
      * @param $column
-     * @param null $value
      * @param $relations
+     * @param null $value
      * @param string[] $columns
      * @return mixed
      */
@@ -259,7 +332,7 @@ abstract class AbstractRepository implements RepositoryInterface
     }
 
     /**
-     * @param string|\Illuminate\Database\Query\Expression $column
+     * @param string|Expression $column
      * @param array $value
      * @param string[] $columns
      * @return mixed
@@ -328,58 +401,77 @@ abstract class AbstractRepository implements RepositoryInterface
 
     /**
      * @param array $attributes
-     * @param int $id
-     * @return bool
+     * @param int|object $model
+     * @param bool $tap
+     * @param bool $forceFill
+     * @return mixed
      */
-    public function update(array $attributes, int $id): bool
+    public function update(array $attributes, $model, bool $tap = false, bool $forceFill = false)
     {
-        return $this
-            ->baseUpdate($attributes, $id)
-            ->update();
+        $model = $this->findModel($model);
+
+        if ($tap)
+            $model = tap($model);
+        if ($forceFill)
+            $model->forceFill($attributes);
+        else
+            $model->fill($attributes);
+
+        return $model->update();
     }
 
     /**
      * @param array $attributes
-     * @param int $id
+     * @param int|object $model
+     * @param bool $tap
      * @return mixed
+     *
+     * forceFill
      */
-    public function updateTap(array $attributes, int $id)
+    public function updateForce(array $attributes, $model, bool $tap = false)
     {
-        return tap(
-            $this->baseUpdate($attributes, $id)
-        )->update();
+        return $this->update($attributes, $model, $tap, true);
     }
 
     /**
-     * @param array $attributes
-     * @param int $id
-     * @return bool
+     * @param int|object $model
+     * @param bool $tap
+     * @param bool $forceDelete
+     * @return mixed
      */
-    public function updateForce(array $attributes, int $id): bool
+    public function delete($model, bool $tap = false, bool $forceDelete = false)
     {
-        return $this
-            ->baseUpdateForce($attributes, $id)
-            ->update();
+        $model = $this->findModel($model);
+
+        if ($tap)
+            $model = tap($model);
+        if ($forceDelete)
+            return $model->forceDelete();
+
+        return $model->delete();
     }
 
     /**
-     * @param array $attributes
-     * @param int $id
+     * @param int|object $model
+     * @param bool $tap
      * @return mixed
      */
-    public function updateForceTap(array $attributes, int $id)
+    public function forceDelete($model, bool $tap = false)
     {
-        return tap(
-            $this->baseUpdateForce($attributes, $id)
-        )->update();
+        return $this->delete($model, $tap, true);
     }
 
     /**
-     * @param int $id
+     * @param array $attribute
+     * @param bool $tap
      * @return mixed
      */
-    public function delete(int $id)
+    public function save(array $attribute = [], bool $tap = false)
     {
-        return $this->find($id)->delete();
+        $model = $this->newModel()->fill($attribute);
+
+        if ($tap) $model = tap($model);
+
+        return $model->save();
     }
 }
